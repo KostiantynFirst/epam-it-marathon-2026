@@ -1,3 +1,7 @@
+using APIHandler.Constants.Orders;
+using APIHandler.Repositories.Orders;
+using System.Collections.Generic;
+using System.Linq;
 using APIHandler.Constants;
 using APIHandler.Entities;
 using APIHandler.Exceptions;
@@ -20,7 +24,8 @@ public class GroupReservationService(
     IReservationRepository reservationRepository,
     IGuestSessionRepository guestSessionRepository,
     IUserService userService,
-    ILocationService locationService) : IGroupReservationService
+    ILocationService locationService,
+    IOrderRepository orderRepository) : IGroupReservationService
 {
     private const string DefaultRestaurantName = "Green & Tasty";
 
@@ -141,6 +146,70 @@ public class GroupReservationService(
             throw new GroupReservationExpiredException();
 
         return new GetGroupInviteTokenResponse(groupReservation.ReservationToken);
+    }
+
+    public async Task<IReadOnlyList<ConsolidatedOrderItemResponse>> SubmitGroupPreOrderAsync(
+    string userId, string groupReservationId, string reservationId)
+    {
+        var groupReservation = await groupReservationRepository.GetGroupReservationByIdAsync(groupReservationId)
+            ?? throw new GroupReservationNotFoundException();
+
+        var reservation = await reservationRepository.GetReservationByIdAsync(reservationId)
+            ?? throw new ReservationNotFoundException($"Reservation {reservationId} was not found.");
+
+        if (reservation.CustomerId != userId)
+            throw new ActionForbiddenException("Only the reservation owner can submit the group pre-order.");
+
+        if (groupReservation.ReservationId != reservation.Id)
+            throw new ValidationException("The group reservation does not belong to the specified reservation.");
+
+        if (groupReservation.Status == GroupReservationStatus.Submitted)
+            throw new GroupReservationSubmittedException();
+
+        // 1. тільки submitted-сесії
+        var submittedSessions = (await guestSessionRepository.GetAllByGroupReservationIdAsync(groupReservationId))
+            .Where(s => s.IsSubmitted)
+            .ToList();
+
+        if (submittedSessions.Count == 0)
+            throw new ValidationException("There are no submitted guest sessions.");
+
+        // 2-3. усі страви в один список, однакові dishId об'єднати
+        var items = submittedSessions
+            .SelectMany(s => s.Dishes)
+            .GroupBy(d => d.DishId)
+            .Select(g => new ConsolidatedOrderItemResponse(g.Key, g.Sum(d => d.Quantity)))
+            .ToList();
+
+        if (items.Count == 0)
+            throw new ValidationException("Submitted guest sessions do not contain any dishes.");
+
+        // 4-5. додати в order і змінити його статус
+        var order = await orderRepository.GetOrderByReservationIdAsync(reservationId)
+            ?? throw new ValidationException($"Order for reservation {reservationId} was not found.");
+
+        order.Dishes ??= [];
+        foreach (var item in items)
+        {
+            var existing = order.Dishes.FirstOrDefault(d => d.DishId == item.DishId);
+            if (existing is not null)
+            {
+                existing.Quantity += item.Quantity;
+                existing.State = OrderItemState.Pending;
+            }
+            else
+            {
+                order.Dishes.Add(new OrderItem { DishId = item.DishId, Quantity = item.Quantity, State = OrderItemState.Pending });
+            }
+        }
+        order.Status = OrderStatus.SubmittedByCustomer;
+        await orderRepository.SaveOrderAsync(order);
+
+        // 6. статус групи
+        groupReservation.Status = GroupReservationStatus.Submitted;
+        await groupReservationRepository.SaveGroupReservationAsync(groupReservation);
+
+        return items;
     }
 }
 
