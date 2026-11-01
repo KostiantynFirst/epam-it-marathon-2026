@@ -17,8 +17,27 @@
   font-weight: 500;
 }
 
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 12px;
+}
+
+.remove {
+  padding: 0 0 2px;
+  border: none;
+  border-bottom: 1px solid color.$neutral-900;
+  background: none;
+  color: color.$neutral-900;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
 .chip {
-  justify-self: end;
   padding: 4px 10px;
   border-radius: 12px;
   font-size: 12px;

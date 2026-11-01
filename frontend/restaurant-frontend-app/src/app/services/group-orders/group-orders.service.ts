@@ -1,4 +1,4 @@
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpContext } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { Observable, map, switchMap } from 'rxjs';
 import { GroupInviteToken, GuestInvite } from '@app/models/reservations/guest-invite.model';
@@ -10,6 +10,12 @@ import {
   SubmittedDish,
 } from '@app/models/group-orders/submit-group-pre-order.model';
 import { API_BASE_URL } from '@app/shared/config/api-base-url.token';
+import { SKIP_ERROR_TOAST } from '@app/auth/skip-error-toast.context';
+
+/** silent: true — фоновий запит, помилку не показуємо toast-ом */
+export interface RequestOptions {
+  silent?: boolean;
+}
 
 @Injectable({
   providedIn: 'root',
@@ -29,9 +35,10 @@ export class GroupOrdersService {
       );
   }
 
-  getSessions$(groupReservationId: string): Observable<GroupSessionsResponse> {
+  getSessions$(groupReservationId: string, options: RequestOptions = {}): Observable<GroupSessionsResponse> {
     return this.http.get<GroupSessionsResponse>(
       `${this.baseUrl}/guest/groups/${encodeURIComponent(groupReservationId)}/sessions`,
+      { context: this.context(options) },
     );
   }
 
@@ -43,9 +50,10 @@ export class GroupOrdersService {
       .pipe(map((response) => response.guestSessionId));
   }
 
-  getStatus$(groupReservationId: string): Observable<GroupStatusResponse> {
+  getStatus$(groupReservationId: string, options: RequestOptions = {}): Observable<GroupStatusResponse> {
     return this.http.get<GroupStatusResponse>(
       `${this.baseUrl}/guest/groups/${encodeURIComponent(groupReservationId)}/status`,
+      { context: this.context(options) },
     );
   }
 
@@ -55,5 +63,16 @@ export class GroupOrdersService {
       `${this.baseUrl}/group-reservations/${encodeURIComponent(groupReservationId)}/submit`,
       body,
     );
+  }
+
+  /** Бонус: Owner видаляє гостя; відповідь — оновлений список у форматі GET …/sessions. */
+  removeSession$(groupReservationId: string, guestSessionId: string): Observable<GroupSessionsResponse> {
+    return this.http.delete<GroupSessionsResponse>(
+      `${this.baseUrl}/guest/groups/${encodeURIComponent(groupReservationId)}/sessions/${encodeURIComponent(guestSessionId)}`,
+    );
+  }
+
+  private context(options: RequestOptions): HttpContext {
+    return new HttpContext().set(SKIP_ERROR_TOAST, options.silent ?? false);
   }
 }

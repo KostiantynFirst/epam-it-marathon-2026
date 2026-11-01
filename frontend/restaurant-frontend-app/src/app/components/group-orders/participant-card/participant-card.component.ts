@@ -1,5 +1,5 @@
 import { CurrencyPipe } from '@angular/common';
-import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
 import { Participant } from '@app/models/group-orders/participant.model';
 
 @Component({
@@ -13,6 +13,9 @@ export class ParticipantCardComponent {
   readonly participant = input.required<Participant>();
   // чи це власна картка Owner (рівень 2)
   readonly isMe = input(false);
+  // бонус: чи можна видалити цього гостя, і подія «натиснули Remove Guest»
+  readonly canRemove = input(false);
+  readonly removeClick = output<Participant>();
 
   readonly title = computed(() => {
     const person = this.participant();

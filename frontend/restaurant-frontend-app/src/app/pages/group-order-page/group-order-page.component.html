@@ -41,6 +41,17 @@
       <button type="button" class="secondary" (click)="load()">Try again</button>
     </div>
   } @else {
+    <div class="sync">
+      @if (refreshFailed()) {
+        <span class="sync-error">Couldn't refresh. Showing data from {{ lastUpdated() | date: 'HH:mm:ss' }}</span>
+      } @else {
+        <span>Updated at {{ lastUpdated() | date: 'HH:mm:ss' }}</span>
+      }
+      @if (!isSubmitted()) {
+        <button type="button" class="link" [disabled]="refreshing()" (click)="refresh()">Refresh</button>
+      }
+    </div>
+
     @if (pendingCount() > 0 && !isSubmitted()) {
       <p class="warning" role="status">{{ pendingMessage() }}</p>
     }
@@ -51,7 +62,14 @@
 
     <ul class="participants">
       @for (person of participants(); track person.id) {
-        <li><app-participant-card [participant]="person" [isMe]="person.id === ownerSessionId()" /></li>
+        <li>
+          <app-participant-card
+            [participant]="person"
+            [isMe]="person.id === ownerSessionId()"
+            [canRemove]="person.type === 'Guest' && !isSubmitted()"
+            (removeClick)="openRemove($event)"
+          />
+        </li>
       }
     </ul>
 
@@ -92,6 +110,18 @@
         <button type="button" class="submit" [disabled]="submitting()" (click)="submit()">
           {{ submitting() ? 'Submitting…' : 'Submit' }}
         </button>
+      </div>
+    </app-modal>
+  }
+  @if (removeTarget(); as person) {
+    <app-modal title="Remove Guest" (closed)="closeRemove()">
+      <p>
+        Are you sure you want to remove <strong>{{ person.name }}</strong> and their pre-order from this reservation?
+        This action cannot be undone.
+      </p>
+      <div modal-actions class="modal-actions">
+        <button type="button" class="secondary" [disabled]="removing()" (click)="closeRemove()">Cancel</button>
+        <button type="button" class="submit" [disabled]="removing()" (click)="confirmRemove()">Remove Guest</button>
       </div>
     </app-modal>
   }
