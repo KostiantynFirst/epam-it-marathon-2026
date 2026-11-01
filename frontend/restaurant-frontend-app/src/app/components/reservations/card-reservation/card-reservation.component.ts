@@ -217,6 +217,11 @@ export class CardReservationComponent {
     });
   }
 
+    /** Owner відкриває екран групового pre-order для цього бронювання. */
+  onGroupPreOrder(): void {
+    void this.router.navigate(['/reservations', this.r().id, 'group-order']);
+  }
+
   private navigateToWaiterPreOrder(): void {
     const reservation = this.r();
 

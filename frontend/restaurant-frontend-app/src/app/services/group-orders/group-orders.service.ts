@@ -42,10 +42,11 @@ export class GroupOrdersService {
     );
   }
 
-  getOwnerSessionId$(reservationId: string): Observable<string> {
+  getOwnerSessionId$(reservationId: string, options: RequestOptions = {}): Observable<string> {
     return this.http
       .get<OwnerSessionResponse>(
         `${this.baseUrl}/reservations/${encodeURIComponent(reservationId)}/guest-session-id`,
+        { context: this.context(options) },
       )
       .pipe(map((response) => response.guestSessionId));
   }

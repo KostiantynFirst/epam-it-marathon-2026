@@ -20,10 +20,23 @@ export const tokenInterceptor: HttpInterceptorFn = (
   // IMPORTANT: do not modify Guest endpoints at all.
   // Guest flow uses a different token (guest session token) and we must not touch the body.
   // Otherwise we break POST /guest/sessions payload.
-  if (req.url.includes('/guest/')) {
-    return next(req).pipe(
+    if (req.url.includes('/guest/')) {
+    // Exception: Owner endpoints of the group pre-order live under /guest/groups/
+    // (GET …/sessions, DELETE …/sessions/{id}) but are protected by Cognito,
+    // so the Owner's token must be attached. GET/DELETE have no body to break.
+    const ownerTokens = req.url.includes('/guest/groups/') ? inject(AuthenticationService).getTokens() : null;
+    const guestRequest = ownerTokens?.idToken
+      ? req.clone({ setHeaders: { Authorization: 'Bearer ' + ownerTokens.idToken } })
+      : req;
+
+    return next(guestRequest).pipe(
       catchError((error: HttpErrorResponse) => {
         console.log(error);
+
+        // background requests ({ silent: true }) show no toast
+        if (guestRequest.context.get(SKIP_ERROR_TOAST)) {
+          return throwError(() => error);
+        }
 
         let errorMessage = 'An unexpected error occurred.';
         if (error.error && typeof error.error === 'string') {

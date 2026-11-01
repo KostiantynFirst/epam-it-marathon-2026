@@ -3,7 +3,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, OnInit, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute } from '@angular/router';
-import { EMPTY, Observable, Subscription, catchError, exhaustMap, forkJoin, interval, switchMap, tap } from 'rxjs';
+import { EMPTY, Observable, Subscription, catchError, exhaustMap, forkJoin, interval, of, switchMap, tap } from 'rxjs';
 import { ParticipantCardComponent } from '@app/components/group-orders/participant-card/participant-card.component';
 import { GroupReservationStatus } from '@app/models/group-orders/group-status.model';
 import { Participant } from '@app/models/group-orders/participant.model';
@@ -84,7 +84,11 @@ export class GroupOrderPageComponent implements OnInit {
           this.invite.set(invite);
           return forkJoin({
             sessions: this.groupOrders.getSessions$(invite.GroupReservationId),
-            ownerSessionId: this.groupOrders.getOwnerSessionId$(this.reservationId),
+            // owner-сесії може ще не бути (бекенд її не створює) —
+            // тоді екран усе одно працює, просто без підпису «My Pre-Order»
+            ownerSessionId: this.groupOrders
+              .getOwnerSessionId$(this.reservationId, { silent: true })
+              .pipe(catchError(() => of(''))),
             status: this.groupOrders.getStatus$(invite.GroupReservationId),
           });
         }),
