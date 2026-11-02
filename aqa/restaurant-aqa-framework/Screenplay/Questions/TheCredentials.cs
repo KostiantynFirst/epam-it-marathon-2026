@@ -19,7 +19,7 @@ public sealed class TheCredentials(Party party) : IQuestion<string?>
         Party.Guest => (await AGuestAsync(actor)).Token,
         Party.Waiter => (await actor.AsksForAsync(new TheWaiterSession())).IdToken,
         Party.Nobody => null,
-        _ => throw new ArgumentOutOfRangeException(nameof(party), party, null),
+        _ => throw new InvalidOperationException($"Unknown party: {party}"),
     };
 
     private static async Task<CustomerAccount> AnotherCustomerAsync(Actor actor)
@@ -34,8 +34,9 @@ public sealed class TheCredentials(Party party) : IQuestion<string?>
 
     private static async Task<GroupGuest> AGuestAsync(Actor actor)
     {
-        if (actor.RecallAll<GroupGuest>().FirstOrDefault() is { } guest)
-            return guest;
+        var guests = actor.RecallAll<GroupGuest>();
+        if (guests.Count > 0)
+            return guests[0];
 
         await actor.AttemptsToAsync(new JoinTheGroup("Curious guest"));
         return actor.Recall<GroupGuest>("Curious guest");
