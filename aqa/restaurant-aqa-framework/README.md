@@ -43,6 +43,7 @@ the `AQA-Sample-` sweep catches leftovers), so scenarios are independent and can
 - The backend never creates the **host's own guest session**, so the screen shows guests only (no "My Pre-Order" card); the host's own dishes reach the restaurant through the host's regular pre-order, which the scenarios check on the waiter's side.
 - The host's screen loads the group through the guests' invite endpoint, which refuses a **full** group or one that is **no longer open**. The scenarios therefore book for 6 guests and use at most 3, and never reload the screen after submitting.
 - The waiter's view is checked through the order the waiter receives from the service (the waiter's role and token), not through the waiter dashboard.
+- Adding a dish to a location's menu reads the location, appends the dish and saves the whole record, so two dishes added **at the same moment** overwrite each other and one silently drops off the menu. Every scenario adds its own dishes to the shared test location, so both group pre-order features are tagged `@sequential` (Reqnroll marks them not-in-parallel) and run one after another.
 
 ## Configure and run
 

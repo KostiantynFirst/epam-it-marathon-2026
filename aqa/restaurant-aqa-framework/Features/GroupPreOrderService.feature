@@ -1,4 +1,4 @@
-@api @group-pre-order
+@api @group-pre-order @sequential
 Feature: Group pre-order rules
 
   A host books a table for a group and shares an invite. Every guest who joins fills a

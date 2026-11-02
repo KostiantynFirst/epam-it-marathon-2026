@@ -1,4 +1,4 @@
-@ui @group-pre-order
+@ui @group-pre-order @sequential
 Feature: Group pre-order on the storefront
 
   The host's side of a group dinner, end to end: guests join through the invite and
