@@ -1,3 +1,6 @@
+> **Homework (EPAM IT Marathon 2026).** Backend: commit `7995757`. Frontend: [FRONTEND-REPORT.md](FRONTEND-REPORT.md).
+> **Test Automation #8:** [aqa/restaurant-aqa-framework/README.md](aqa/restaurant-aqa-framework/README.md) — direction, approach, how to run, chosen behaviour.
+
 # Deployment Guide
 
 This repo uses three deployment tracks:

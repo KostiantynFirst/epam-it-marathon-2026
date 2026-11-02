@@ -1,4 +1,6 @@
 using Restaurant_Aqa_Framework.Api.Dtos.Dishes;
+using Restaurant_Aqa_Framework.Screenplay;
+using Restaurant_Aqa_Framework.Screenplay.Tasks;
 using Restaurant_Aqa_Framework.Support;
 
 namespace Restaurant_Aqa_Framework.StepDefinitions;
@@ -13,6 +15,28 @@ namespace Restaurant_Aqa_Framework.StepDefinitions;
 [Binding]
 public static class StepArgumentTransformations
 {
+    [StepArgumentTransformation(Name = "party", Regex = "(host|another customer|guest|waiter|visitor who is not signed in)")]
+    public static Party ToParty(string value) => value switch
+    {
+        "host" => Party.Host,
+        "another customer" => Party.AnotherCustomer,
+        "guest" => Party.Guest,
+        "waiter" => Party.Waiter,
+        "visitor who is not signed in" => Party.Nobody,
+        _ => throw new ArgumentOutOfRangeException(nameof(value), value, null),
+    };
+
+    /// <summary>The dishes a group dinner is set up with (see <see cref="SetUpAGroupDinner"/>); the step gets the key
+    /// the dish is remembered under.</summary>
+    [StepArgumentTransformation(Name = "dish", Regex = "(first dish|second dish|host's dish)")]
+    public static string ToDishKey(string value) => value switch
+    {
+        "first dish" => SetUpAGroupDinner.FirstDish,
+        "second dish" => SetUpAGroupDinner.SecondDish,
+        "host's dish" => SetUpAGroupDinner.HostsDish,
+        _ => throw new ArgumentOutOfRangeException(nameof(value), value, null),
+    };
+
     [StepArgumentTransformation(Name = "dish_type", Regex = "(appetizer|main course|dessert)")]
     public static DishType ToDishType(string value) => value switch
     {

@@ -1,3 +1,80 @@
+# Homework solution — Test Automation #8
+
+**Direction:** 1 — group pre-order. The tests run against **my own deployed application**: my backend homework
+(API Gateway + Lambda on AWS) and my frontend homework (S3 + CloudFront).
+
+**Approach:** BDD + Screenplay, built on this framework. Gherkin describes the business rules
+(`Features/GroupPreOrder*.feature`), thin step definitions hand the work to Screenplay tasks and questions
+(`Screenplay/`), which use the API clients (`Api/GroupPreOrdersApi.cs`) and the page object (`Ui/GroupOrderPage.cs`).
+
+## What is covered
+
+Following the test pyramid of the assignment:
+
+| Level | UI — `Features/GroupPreOrderStorefront.feature` (`@ui`) | API — `Features/GroupPreOrderService.feature` (`@api`) |
+|---|---|---|
+| 1 — view | host reviews carts (confirmed / still choosing, subtotals, grand total); sees a guest's confirmation without leaving the screen; empty group | all participants with dishes, totals, confirmed flag (incl. one without dishes); total = sum of participants and follows a cart change; empty group; another customer / guest / waiter / visitor refused; group that does not exist |
+| 2 — submit | same dishes merged, unconfirmed carts left out, "Sent to Restaurant"; **waiter sees the order** with exactly that content | consolidated order; no confirmed cart; no order for the booking; group / booking that does not exist; submitting twice; another customer / guest / waiter / visitor refused |
+| 3 — remove | host removes a guest, totals follow; **end-to-end**: guests' carts → host reviews → removes one → submits → waiter sees the order without the removed guest | one of several (total recalculated); a removed participant's confirmed cart is not sent; the last participant; a participant of another group; someone who never joined; another customer / guest / waiter / visitor refused |
+
+Guests and all test data are prepared through the API (as the pyramid suggests): a fresh table and three dishes
+with round prices in the test location, a freshly registered host, a booking on a random future day, the host's
+own pre-order, the invite. Everything is removed after the scenario (booking cancelled, dishes and table deleted;
+the `AQA-Sample-` sweep catches leftovers), so scenarios are independent and can run in parallel.
+
+## Behaviour chosen where the assignment does not define it
+
+| Case | Chosen behaviour (tested) |
+|---|---|
+| Not the host, but signed in (another customer, the waiter) | `403` — "Only the reservation owner …" |
+| Not signed in as a customer (no token, or a guest's session token) | `401` from the API Gateway authorizer |
+| Group that does not exist | `404` |
+| Booking that does not exist (submit) | `404` |
+| No confirmed cart / no order for the booking | `400` with the reason in the message |
+| Submitting an already submitted group | `400` "Group reservation was submitted." |
+| Removing a participant of another group | `400` "Guest session does not belong to this group reservation." |
+| Removing someone who never joined | `404` |
+| Removing the last participant | `200`, `participants: []`, `total: 0` |
+| Group nobody joined | `participants: []`, `total: 0` |
+
+## Known limitations of the application (found while automating)
+
+- **"Confirmed carts without any dish"** cannot be reached from outside: a guest cannot confirm an empty cart, and a confirmed cart can no longer be changed — so this submit refusal is not automated.
+- The backend never creates the **host's own guest session**, so the screen shows guests only (no "My Pre-Order" card); the host's own dishes reach the restaurant through the host's regular pre-order, which the scenarios check on the waiter's side.
+- The host's screen loads the group through the guests' invite endpoint, which refuses a **full** group or one that is **no longer open**. The scenarios therefore book for 6 guests and use at most 3, and never reload the screen after submitting.
+- The waiter's view is checked through the order the waiter receives from the service (the waiter's role and token), not through the waiter dashboard.
+
+## Configure and run
+
+1. `cp .env.example .env` and fill in **your own** deployment:
+   - `UI_URL` — the frontend (e.g. `https://<id>.cloudfront.net`), `API_URL` — the API including the stage (`…/develop`);
+   - `WAITER_USERNAME` / `WAITER_PASSWORD` — a standing waiter: register a customer, then make them a waiter of a location with `POST /waiters` `{"email": "…", "locationId": "…"}`;
+   - `TESTLOCATION_ID` — that location (every booking is handed to one of the location's waiters).
+2. Run:
+
+```bash
+dotnet build
+dotnet run --no-build -- --treenode-filter "/*/*/*/*[Category=group-pre-order]"   # the whole homework
+dotnet run --no-build -- --treenode-filter "/*/*/*/*[Category=level-2]"           # one level
+dotnet run --no-build -- --treenode-filter "/*/*/*/*[Category=api]"               # one layer (api / ui)
+dotnet run --no-build -- --treenode-filter "/*/*/*/*[Category=smoke]"             # smoke
+```
+
+Tags: `@group-pre-order`, `@level-1` / `@level-2` / `@level-3`, `@ui` / `@api`, `@smoke`, `@negative`, `@e2e`.
+
+**Reports:** everything lands in `TestResults/` — TUnit HTML report and TRX, the Reqnroll HTML report in
+`TestResults/reqnroll/`, and a Playwright trace for every failed UI scenario in `TestResults/traces/`
+(`npx playwright show-trace <file>.zip`).
+
+**CI:** `.github/workflows/aqa-tests.yml` runs the group pre-order scenarios on every push to `main` that touches the
+tests, nightly, and on demand (Actions → AQA Tests → Run workflow → choose a scope: a level, `ui`, `api`, `smoke`, or
+`all`). A failing test does not stop the pipeline: the reports, the TRX and the traces are uploaded as artifacts and a
+summary is written to the run. `aqa-quality.yml` checks format, build (analyzers as errors), Gherkin lint and test
+discovery on every push. Configuration comes from repository variables (`AQA_UI_URL`, `AQA_API_URL`,
+`AQA_TESTLOCATION_ID`) and secrets (`AQA_WAITER_USERNAME`, `AQA_WAITER_PASSWORD`).
+
+---
+
 # Restaurant AQA framework
 
 End-to-end tests for the Green & Tasty restaurant application: Reqnroll (Gherkin) + TUnit + Playwright for .NET, with the Screenplay pattern.

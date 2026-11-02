@@ -46,7 +46,8 @@ public sealed record Settings(
     string? AdminPassword,
     string? TestTableId,
     string? TestTableWaiterUsername,
-    string? TestTableWaiterPassword)
+    string? TestTableWaiterPassword,
+    string? TestLocationId)
 {
     private static readonly Lazy<Settings> Lazy = new(Load);
 
@@ -59,6 +60,14 @@ public sealed record Settings(
             ? (user, password)
             : throw new InvalidOperationException(
                 "WAITER_USERNAME/WAITER_PASSWORD are not set. Set them in '.env' or as environment variables. See '.env.example'.");
+
+    /// <summary>The location the group pre-order scenarios book in: it must have the standing waiter assigned,
+    /// because a booking is always handed to one of the location's waiters.</summary>
+    public string RequireTestLocation() =>
+        TestLocationId is { Length: > 0 } id
+            ? id
+            : throw new InvalidOperationException(
+                "TESTLOCATION_ID is not set. Set it in '.env' or as an environment variable to a location the standing waiter is assigned to. See '.env.example'.");
 
     private static Settings Load()
     {
@@ -81,7 +90,8 @@ public sealed record Settings(
             AdminPassword: ReadOptionalString("ADMIN_PASSWORD"),
             TestTableId: ReadOptionalString("TESTTABLE_ID"),
             TestTableWaiterUsername: ReadOptionalString("TESTTABLE_WAITER_USERNAME"),
-            TestTableWaiterPassword: ReadOptionalString("TESTTABLE_WAITER_PASSWORD"));
+            TestTableWaiterPassword: ReadOptionalString("TESTTABLE_WAITER_PASSWORD"),
+            TestLocationId: ReadOptionalString("TESTLOCATION_ID"));
     }
 
     private static string RequireString(string key)
